@@ -74,42 +74,74 @@ class DatabentoResource(ConfigurableResource):
         ticker: str,
         start_date: pd.Timestamp,
         end_date: pd.Timestamp,
-        resolution: Literal["daily", "hourly", "minute", "second"] = "daily",
+        resolution: str = "daily",
         dataset: str | None = None,
-        buffer_days: int = 3,
+        buffer_days: int = 2,
+        segments: list[dict] | None = None,
     ) -> pd.DataFrame:
         """
         Fetch OHLCV bars from Databento.
-        Adds buffer_days on each side to avoid boundary gaps.
-        Returns a normalised DataFrame ready for TimescaleResource.upsert_ohlcv.
+
+        If `segments` is provided (list of {"start": date, "end": date}),
+        fetches only those date windows — the cost-control path.
+
+        If `segments` is None, fetches the full start_date → end_date range.
         """
         logger = get_dagster_logger()
         schema = RESOLUTION_TO_SCHEMA.get(resolution, "ohlcv-1d")
         ds     = dataset or self.default_dataset
         delta  = timedelta(days=buffer_days)
 
-        logger.info(
-            f"[Databento] Fetching {ticker} | {schema} | "
-            f"{(start_date - delta).date()} → {(end_date + delta).date()} | dataset={ds}"
-        )
+        if segments:
+            frames = []
+            for seg in segments:
+                seg_start = pd.Timestamp(seg["start"]).tz_localize("UTC")
+                seg_end   = pd.Timestamp(seg["end"]).tz_localize("UTC")
+                logger.info(
+                    f"[Databento] Fetching segment {ticker} | "
+                    f"{(seg_start - delta).date()} → {(seg_end + delta).date()}"
+                )
+                try:
+                    raw = self._client().timeseries.get_range(
+                        dataset=ds,
+                        symbols=ticker,
+                        start=(seg_start - delta).strftime("%Y-%m-%d"),
+                        end=(seg_end + delta).strftime("%Y-%m-%d"),
+                        schema=schema,
+                    )
+                    df = raw.to_df()
+                    df = self._coerce_uint64(df)
+                    df = self._normalise(df, ticker=ticker, resolution=resolution)
+                    frames.append(df)
+                    logger.info(f"[Databento] Segment got {len(df)} rows")
+                except Exception as exc:
+                    logger.error(f"[Databento] Segment fetch failed {ticker} {seg}: {exc}")
+                    raise
 
-        try:
-            raw = self._client().timeseries.get_range(
-                dataset=ds,
-                symbols=ticker,
-                start=(start_date - delta).strftime("%Y-%m-%d"),
-                end=(end_date + delta).strftime("%Y-%m-%d"),
-                schema=schema,
+            return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+
+        else:
+            logger.info(
+                f"[Databento] Full fetch {ticker} | "
+                f"{(start_date - delta).date()} → {(end_date + delta).date()} | dataset={ds}"
             )
-            df = raw.to_df()
-        except Exception as exc:
-            logger.error(f"[Databento] Fetch failed for {ticker}: {exc}")
-            raise
+            try:
+                raw = self._client().timeseries.get_range(
+                    dataset=ds,
+                    symbols=ticker,
+                    start=(start_date - delta).strftime("%Y-%m-%d"),
+                    end=(end_date + delta).strftime("%Y-%m-%d"),
+                    schema=schema,
+                )
+                df = raw.to_df()
+            except Exception as exc:
+                logger.error(f"[Databento] Fetch failed for {ticker}: {exc}")
+                raise
 
-        df = self._coerce_uint64(df)
-        df = self._normalise(df, ticker=ticker, resolution=resolution)
-        logger.info(f"[Databento] Got {len(df)} rows for {ticker}")
-        return df
+            df = self._coerce_uint64(df)
+            df = self._normalise(df, ticker=ticker, resolution=resolution)
+            logger.info(f"[Databento] Got {len(df)} rows for {ticker}")
+            return df
 
     def fetch_multiple(
         self,
@@ -118,12 +150,13 @@ class DatabentoResource(ConfigurableResource):
         end_date: pd.Timestamp,
         resolution: str = "daily",
         dataset: str | None = None,
+        segments: list[dict] | None = None,
     ) -> pd.DataFrame:
         """Fetch a batch of tickers and concatenate results."""
         frames: list[pd.DataFrame] = []
         for ticker in tickers:
             try:
-                frames.append(self.fetch_ohlcv(ticker, start_date, end_date, resolution, dataset))
+                frames.append(self.fetch_ohlcv(ticker, start_date, end_date, resolution, dataset, segments=segments))
             except Exception as exc:
                 get_dagster_logger().warning(f"[Databento] Skipping {ticker}: {exc}")
         return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()

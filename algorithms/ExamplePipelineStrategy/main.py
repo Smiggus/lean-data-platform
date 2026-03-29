@@ -1,78 +1,73 @@
 """
 ExamplePipelineStrategy
 ────────────────────────
-Demonstrates BaseStrategy local/cloud routing.
+Demonstrates the lean_pipeline library pattern.
 
-Local:  PipelineEquityData (Databento OHLCV) + PipelineFundamentals (FMP)
-Cloud:  Native QC AddEquity
+local:  request_ohlcv() checks DB coverage and fires Dagster jobs if missing.
+        Re-run after Dagster completes ingestion.
+cloud:  native QC data via AddEquity.
 
 Run locally:
     lean backtest "ExamplePipelineStrategy" --data-provider-historical Local
 
-Ensure data exists first:
-    python lean_bridge/lean_runner.py --strategy ExamplePipelineStrategy
+Tickers do NOT need to be declared upfront — call request_ohlcv() for each
+ticker your strategy needs inside _init_local_data().
 """
 
-import sys
-import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "lean_bridge"))
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from AlgorithmImports import *           # noqa
-from base_strategy import BaseStrategy
-from custom_data_reader import PipelineEquityData, PipelineFundamentals
+from AlgorithmImports import *
+from lean_pipeline.base_strategy import BaseStrategy
+from lean_pipeline.custom_data_reader import PipelineEquityData, PipelineFundamentals
 
 
 class ExamplePipelineStrategy(BaseStrategy):
 
     def Initialize(self):
-        self.SetStartDate(2022, 1, 1)
+        self.SetStartDate(2023, 1, 1)
         self.SetEndDate(2023, 12, 31)
         self.SetCash(100_000)
         self.SetBenchmark("SPY")
-
-        # BaseStrategy detects env and calls _init_local_data or _init_cloud_data
         super().Initialize()
 
-        self._pe_ratio: float | None = None
-        self._invested: bool = False
-
     def _init_local_data(self):
-        self._spy      = self.AddEquity("SPY", Resolution.Daily).Symbol
-        self._pipe_sym = self.AddData(PipelineEquityData, "SPY", Resolution.Daily).Symbol
-        self._fund_sym = self.AddData(PipelineFundamentals, "SPY").Symbol
-        self.LogEnv("Local pipeline data registered — SPY")
+        # request_ohlcv() checks PostgreSQL for gaps.
+        # Only missing date ranges are downloaded from Databento.
+        # If any data is missing, a Dagster job is fired and the
+        # algorithm exits cleanly — re-run after ingestion completes.
+        self.request_ohlcv("SPY", self.StartDate, self.EndDate)
+
+        # Add more tickers as needed — determined at runtime, no upfront list:
+        # self.request_ohlcv("QQQ", self.StartDate, self.EndDate)
+        # self.request_ohlcv("AAPL", self.StartDate, self.EndDate)
+
+        # Optional — only if your strategy needs fundamental data:
+        # self.request_fundamentals("SPY")  # fires fmp_fundamentals_job if missing
+
+        # Only reached if all data is present in DB
+        self._spy  = self.AddEquity("SPY", Resolution.Daily).Symbol
+        self._pipe = self.AddData(PipelineEquityData, "SPY", Resolution.Daily).Symbol
+        self.LogEnv("All data present — subscriptions registered")
 
     def _init_cloud_data(self):
-        self._spy      = self.AddEquity("SPY", Resolution.Daily).Symbol
-        self._pipe_sym = None
-        self._fund_sym = None
-        self.LogEnv("Cloud QC data registered — SPY")
+        self._spy  = self.AddEquity("SPY", Resolution.Daily).Symbol
+        self._pipe = None
+        self.LogEnv("Cloud QC data registered")
 
     def OnData(self, data: Slice):
-        # Update fundamentals (local only)
-        if self.is_local and self._fund_sym and self._fund_sym in data:
-            self._pe_ratio = data[self._fund_sym].get("pe_ratio")
-
-        # Get close price from correct source
         if self.is_local:
-            if not self._pipe_sym or self._pipe_sym not in data:
+            if not self._pipe or self._pipe not in data:
                 return
-            close = data[self._pipe_sym].Close
+            close = data[self._pipe].Close
         else:
             if not self.Securities[self._spy].HasData:
                 return
             close = self.Securities[self._spy].Close
 
-        # Simple P/E entry/exit
-        if not self._invested:
-            if self._pe_ratio is None or self._pe_ratio < 25:
-                self.SetHoldings(self._spy, 1.0)
-                self._invested = True
-                self.LogEnv(f"BUY | P/E={self._pe_ratio} | Close={close:.2f}")
-        elif self._pe_ratio and self._pe_ratio > 30:
-            self.Liquidate(self._spy)
-            self._invested = False
-            self.LogEnv(f"SELL | P/E={self._pe_ratio:.2f} | Close={close:.2f}")
+        if not self.Portfolio.Invested:
+            self.SetHoldings(self._spy, 1.0)
+            self.LogEnv(f"BUY SPY @ {close:.2f}")
 
     def OnEndOfAlgorithm(self):
-        self.LogEnv(f"Final value: ${self.Portfolio.TotalPortfolioValue:,.2f}")
+        self.LogEnv(f"Final: ${self.Portfolio.TotalPortfolioValue:,.2f}")

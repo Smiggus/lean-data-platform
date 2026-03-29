@@ -144,36 +144,37 @@ class TimescaleResource(ConfigurableResource):
         finally:
             engine.dispose()
 
-    def is_covered(
+    def is_fully_covered(
         self,
         ticker: str,
         start_date: pd.Timestamp,
         end_date: pd.Timestamp,
         resolution: str = "daily",
     ) -> bool:
-        """True if DB already has data covering the full [start_date, end_date] range."""
-        min_ts, max_ts = self.get_coverage(ticker, resolution)
-        if min_ts is None:
-            return False
-        return (
-            start_date.date() >= min_ts.date()
-            and end_date.date() <= max_ts.date()
-        )
+        """True only if every weekday in [start_date, end_date] exists in ohlcv.prices."""
+        segments = self.get_missing_segments(ticker, start_date.date(), end_date.date(), resolution)
+        return len(segments) == 0
 
-    def get_missing_dates(
+    def get_missing_segments(
         self,
         ticker: str,
         start_date: date,
         end_date: date,
         resolution: str = "daily",
-    ) -> list[date]:
-        """Returns list of weekday dates in [start, end] missing from ohlcv.prices."""
+    ) -> list[dict]:
+        """
+        Returns a list of contiguous missing date segments for ticker+resolution.
+        Each segment is {"start": date, "end": date}.
+
+        Example: if DB has Jan–Mar and Jul–Dec but not Apr–Jun, returns:
+            [{"start": date(2023,4,1), "end": date(2023,6,30)}]
+        """
         engine = self._engine()
         try:
             rows = pd.read_sql(
                 text("""
                     SELECT gs::date AS missing_date
-                    FROM generate_series(:start::date, :end::date, '1 day'::interval) AS gs
+                    FROM generate_series(CAST(:start AS date), CAST(:end AS date), '1 day'::interval) AS gs
                     WHERE EXTRACT(DOW FROM gs) NOT IN (0, 6)
                       AND gs::date NOT IN (
                           SELECT ts_event::date
@@ -190,9 +191,25 @@ class TimescaleResource(ConfigurableResource):
                     "resolution": resolution,
                 },
             )
-            return list(rows["missing_date"])
         finally:
             engine.dispose()
+
+        if rows.empty:
+            return []
+
+        missing_dates = sorted(rows["missing_date"].tolist())
+        segments: list[dict] = []
+        seg_start = missing_dates[0]
+        seg_end   = missing_dates[0]
+
+        for d in missing_dates[1:]:
+            if (d - seg_end).days > 5:
+                segments.append({"start": seg_start, "end": seg_end})
+                seg_start = d
+            seg_end = d
+
+        segments.append({"start": seg_start, "end": seg_end})
+        return segments
 
     # ── Fundamentals ──────────────────────────────────────────────────────────
 
