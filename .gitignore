@@ -1,0 +1,32 @@
+# Secrets
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Data (large — store in Docker volume, not repo)
+data/
+manifests/missing_data_manifest.json
+
+# Dagster runtime state
+dagster_home/history/
+dagster_home/storage/
+dagster_home/schedules/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

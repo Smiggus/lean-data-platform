@@ -1,0 +1,11 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "lean-data-platform"
+version = "0.1.0"
+description = "Dagster pipeline: Databento + FMP → PostgreSQL → LEAN CLI"
+
+[tool.dagster]
+module_name = "pipeline.definitions"

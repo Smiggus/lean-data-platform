@@ -1,0 +1,5 @@
+{
+  "tickers":    ["QQQ", "SPY", "IWM", "GLD", "TLT"],
+  "resolution": "daily",
+  "notes":      "Tickers for nightly Databento refresh (daily_equity_refresh_schedule). Edit freely."
+}

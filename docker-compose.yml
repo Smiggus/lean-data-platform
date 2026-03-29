@@ -1,0 +1,70 @@
+version: '3.8'
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LEAN Data Platform — Docker Compose
+#
+# Database is external (TARS @ 192.168.17.4:5432). No DB service here.
+# Services: dagster-webserver | dagster-daemon
+#
+# K8s migration path:
+#   Each service → Deployment, lean_data volume → PVC,
+#   .env → Kubernetes Secret. No application code changes needed.
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── Dagster Webserver (UI + GraphQL API) ────────────────────────────────────
+  dagster-webserver:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lean_dagster_webserver
+    restart: unless-stopped
+    command: dagster-webserver -h 0.0.0.0 -p 3000 -w /app/workspace.yaml
+    ports:
+      - "3000:3000"
+    env_file: .env
+    volumes:
+      - ./pipeline:/app/pipeline          # hot-reload during dev
+      - ./lean_bridge:/app/lean_bridge
+      - lean_data:/app/data               # LEAN local data library
+      - dagster_storage:/app/dagster_home
+      - ./dagster_home/dagster.yaml:/app/dagster_home/dagster.yaml:ro
+      - ./manifests:/app/manifests
+      - ./algorithms:/app/algorithms
+    environment:
+      DAGSTER_HOME: /app/dagster_home
+      PYTHONPATH: /app
+    networks:
+      - lean_net
+
+  # ── Dagster Daemon (sensors + schedules + run launcher) ─────────────────────
+  dagster-daemon:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lean_dagster_daemon
+    restart: unless-stopped
+    command: dagster-daemon run -w /app/workspace.yaml
+    env_file: .env
+    volumes:
+      - ./pipeline:/app/pipeline
+      - ./lean_bridge:/app/lean_bridge
+      - lean_data:/app/data
+      - dagster_storage:/app/dagster_home
+      - ./dagster_home/dagster.yaml:/app/dagster_home/dagster.yaml:ro
+      - ./manifests:/app/manifests
+      - ./algorithms:/app/algorithms
+    environment:
+      DAGSTER_HOME: /app/dagster_home
+      PYTHONPATH: /app
+    networks:
+      - lean_net
+
+volumes:
+  lean_data:
+  dagster_storage:
+
+networks:
+  lean_net:
+    driver: bridge
