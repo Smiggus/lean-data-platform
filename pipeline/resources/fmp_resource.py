@@ -4,6 +4,9 @@ FMPResource
 ConfigurableResource wrapping Financial Modeling Prep REST API.
 Covers: income statement, balance sheet, cash flow, key metrics,
 daily prices (fallback), dividends, splits.
+
+Uses the /stable/ endpoint (replacing the deprecated /api/v3/ endpoints).
+Ticker is now passed as ?symbol= query param instead of a path segment.
 """
 
 from __future__ import annotations
@@ -22,11 +25,11 @@ class FMPResource(ConfigurableResource):
     """
     Config:
         api_key:  FMP API key
-        base_url: FMP v3 base URL
+        base_url: FMP stable base URL
     """
 
     api_key: str
-    base_url: str = "https://financialmodelingprep.com/api/v3"
+    base_url: str = "https://financialmodelingprep.com/stable"
 
     def _get(self, endpoint: str, params: dict | None = None) -> list | dict:
         p = {**(params or {}), "apikey": self.api_key}
@@ -43,7 +46,7 @@ class FMPResource(ConfigurableResource):
     # ── Price data (fallback / cross-check) ──────────────────────────────────
 
     def fetch_daily_prices(self, ticker: str, start_date: str, end_date: str) -> pd.DataFrame:
-        data = self._get(f"historical-price-full/{ticker}", {"from": start_date, "to": end_date})
+        data = self._get("historical-price-eod/full", {"symbol": ticker, "from": start_date, "to": end_date})
         if "historical" not in data:
             get_dagster_logger().warning(f"[FMP] No price data for {ticker}")
             return pd.DataFrame()
@@ -58,37 +61,37 @@ class FMPResource(ConfigurableResource):
     # ── Fundamentals ──────────────────────────────────────────────────────────
 
     def fetch_income_statement(self, ticker: str, period: Period = "annual", limit: int = 10) -> pd.DataFrame:
-        data = self._get(f"income-statement/{ticker}", {"period": period, "limit": limit})
+        data = self._get("income-statement", {"symbol": ticker, "period": period, "limit": limit})
         if not data:
             return pd.DataFrame()
-        df = pd.DataFrame(data)
+        df = pd.DataFrame(data).drop(columns=["symbol"], errors="ignore")
         df["date"]   = pd.to_datetime(df["date"])
         df["period"] = period
         return self._tag(df, ticker)
 
     def fetch_balance_sheet(self, ticker: str, period: Period = "annual", limit: int = 10) -> pd.DataFrame:
-        data = self._get(f"balance-sheet-statement/{ticker}", {"period": period, "limit": limit})
+        data = self._get("balance-sheet-statement", {"symbol": ticker, "period": period, "limit": limit})
         if not data:
             return pd.DataFrame()
-        df = pd.DataFrame(data)
+        df = pd.DataFrame(data).drop(columns=["symbol"], errors="ignore")
         df["date"]   = pd.to_datetime(df["date"])
         df["period"] = period
         return self._tag(df, ticker)
 
     def fetch_cash_flow(self, ticker: str, period: Period = "annual", limit: int = 10) -> pd.DataFrame:
-        data = self._get(f"cash-flow-statement/{ticker}", {"period": period, "limit": limit})
+        data = self._get("cash-flow-statement", {"symbol": ticker, "period": period, "limit": limit})
         if not data:
             return pd.DataFrame()
-        df = pd.DataFrame(data)
+        df = pd.DataFrame(data).drop(columns=["symbol"], errors="ignore")
         df["date"]   = pd.to_datetime(df["date"])
         df["period"] = period
         return self._tag(df, ticker)
 
     def fetch_key_metrics(self, ticker: str, period: Period = "annual", limit: int = 10) -> pd.DataFrame:
-        data = self._get(f"key-metrics/{ticker}", {"period": period, "limit": limit})
+        data = self._get("key-metrics", {"symbol": ticker, "period": period, "limit": limit})
         if not data:
             return pd.DataFrame()
-        df = pd.DataFrame(data)
+        df = pd.DataFrame(data).drop(columns=["symbol"], errors="ignore")
         df["date"]   = pd.to_datetime(df["date"])
         df["period"] = period
         return self._tag(df, ticker)
@@ -96,7 +99,7 @@ class FMPResource(ConfigurableResource):
     # ── Corporate actions ─────────────────────────────────────────────────────
 
     def fetch_dividends(self, ticker: str) -> pd.DataFrame:
-        data = self._get(f"historical-price-full/stock_dividend/{ticker}")
+        data = self._get("historical-dividends", {"symbol": ticker})
         if "historical" not in data:
             return pd.DataFrame()
         df = pd.DataFrame(data["historical"])
@@ -104,7 +107,7 @@ class FMPResource(ConfigurableResource):
         return self._tag(df, ticker)
 
     def fetch_splits(self, ticker: str) -> pd.DataFrame:
-        data = self._get(f"historical-price-full/stock_split/{ticker}")
+        data = self._get("historical-stock-splits", {"symbol": ticker})
         if "historical" not in data:
             return pd.DataFrame()
         df = pd.DataFrame(data["historical"])

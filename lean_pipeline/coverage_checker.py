@@ -21,7 +21,7 @@ class CoverageChecker:
     pipeline fetches fresh data.
     """
 
-    def __init__(self):
+    def __init__(self, lean_data_root: str | None = None):
         self._conn_params = {
             "host":     os.environ.get("PGHOST", "192.168.17.4"),
             "port":     int(os.environ.get("PGPORT", 5432)),
@@ -29,10 +29,27 @@ class CoverageChecker:
             "user":     os.environ.get("PGUSER", "eqty"),
             "password": os.environ.get("PGPASS", ""),
         }
+        self._lean_data_root = lean_data_root or os.environ.get(
+            "LEAN_DATA_ROOT",
+            os.path.expanduser("~/Projects/Algo/data"),
+        )
 
     def _connect(self):
         import psycopg2
         return psycopg2.connect(**self._conn_params)
+
+    def _lean_zip_exists(self, ticker: str, resolution: str = "daily") -> bool:
+        import pathlib
+        # LEAN directory names differ from internal resolution strings
+        lean_dir = {"hourly": "hour", "hour": "hour"}.get(resolution, resolution)
+        base = pathlib.Path(self._lean_data_root) / "equity" / "usa" / lean_dir
+        if resolution in ("minute", "second"):
+            # Intraday: one ZIP per day inside a ticker subdirectory
+            ticker_dir = base / ticker.lower()
+            return ticker_dir.is_dir() and any(ticker_dir.glob("*_trade.zip"))
+        else:
+            # Daily / hourly: single ZIP file
+            return (base / f"{ticker.lower()}.zip").is_file()
 
     def is_ohlcv_covered(
         self,
@@ -61,10 +78,22 @@ class CoverageChecker:
             missing_count = cur.fetchone()[0]
             cur.close()
             conn.close()
-            return missing_count == 0
+            if missing_count != 0:
+                return False
         except Exception as e:
             print(f"[CoverageChecker] DB unreachable, assuming not covered: {e}")
             return False
+
+        # PostgreSQL covered — verify the LEAN ZIP exists on disk
+        if not self._lean_zip_exists(ticker, resolution):
+            print(
+                f"[CoverageChecker] {ticker} covered in DB but LEAN ZIP missing at "
+                f"{self._lean_data_root}/equity/usa/{resolution}/{ticker.lower()}.zip "
+                f"— will trigger re-write from DB"
+            )
+            return False
+
+        return True
 
     def get_missing_segments(
         self,

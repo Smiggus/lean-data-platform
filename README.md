@@ -131,28 +131,136 @@ lean backtest "ExamplePipelineStrategy" --data-provider-historical Local
 
 ---
 
+## Deploying to HAL-107 (or any Linux server)
+
+Run Dagster on a dedicated machine so all algorithms share one data pipeline and you can monitor everything from a browser.
+
+### Prerequisites
+
+- Docker and Docker Compose installed on HAL-107
+- LEAN CLI initialized at `~/Projects/Algo` (creates `~/Projects/Algo/data/`)
+- This repo cloned on HAL-107 (e.g. `~/Projects/Coding/DataFeeds/lean-data-platform`)
+
+### 1. One-time host setup
+
+```bash
+# Create the LEAN data directory (bind-mount target for Docker)
+mkdir -p ~/Projects/Algo/data
+
+# Symlink lean_pipeline so all algorithms can import it without copying
+ln -s ~/Projects/Coding/DataFeeds/lean-data-platform/lean_pipeline \
+      ~/Projects/Algo/lean_pipeline
+```
+
+### 2. Configure `.env`
+
+```bash
+cd ~/Projects/Coding/DataFeeds/lean-data-platform
+cp .env.example .env
+```
+
+Edit `.env` — key HAL-107 values:
+
+```
+LEAN_DATA_ROOT=/home/mp/Projects/Algo/data   # ← full absolute path, no ~
+DAGSTER_HOST=localhost
+DAGSTER_PORT=3000
+PGHOST=192.168.17.4
+```
+
+> **Important:** Docker Compose does not expand `~`. `LEAN_DATA_ROOT` must be a full absolute path.
+
+### 3. Start Dagster
+
+```bash
+docker-compose up -d --build
+```
+
+Dagster UI: `http://localhost:3000` (or `http://hal-107-ip:3000` from another machine)
+
+### 4. Verify the bind mount
+
+After the first ingestion job completes:
+
+```bash
+ls ~/Projects/Algo/data/equity/usa/daily/
+# spy.zip  qqq.zip  ...
+```
+
+Files written by Dagster inside the container are immediately visible on the host at `~/Projects/Algo/data`.
+
+### 5. Algorithm setup
+
+Each algorithm only needs `lean_pipeline` on its `sys.path`. Because the symlink lives at `~/Projects/Algo/lean_pipeline`, insert the `Algo/` parent:
+
+```python
+import sys, os
+# Insert ~/Projects/Algo so `from lean_pipeline...` resolves via the symlink
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from AlgorithmImports import *
+from lean_pipeline.base_strategy import BaseStrategy
+```
+
+### 6. Host environment variables
+
+Algorithms running on HAL-107 need these set in the shell (add to `~/.bashrc` for persistence):
+
+```bash
+export PGHOST=192.168.17.4
+export PGPORT=5432
+export PGDB=FinancialData
+export PGUSER=eqty
+export PGPASS=your-password
+export LEAN_DATA_ROOT=/home/mp/Projects/Algo/data
+export DAGSTER_HOST=localhost
+export DAGSTER_PORT=3000
+export QC_RUN_ENV=local
+```
+
+### 7. Run a backtest
+
+```bash
+cd ~/Projects/Algo
+lean backtest "MyStrategy" --data-provider-historical Local
+```
+
+- **First run:** algorithm detects missing data, fires Dagster job, exits cleanly. Watch the run in the Dagster UI.
+- **Second run:** backtest runs normally using data from `~/Projects/Algo/data`.
+
+### Multiple algorithms concurrently
+
+Each algorithm fires its own `launchRun` mutation. Dagster queues and runs them independently. If two algorithms both need SPY, the second job finds the DB already populated, skips Databento, and re-writes the ZIP from PostgreSQL at no cost.
+
+### Remote access (from laptop)
+
+Set `DAGSTER_HOST=192.168.17.X` (HAL-107's LAN IP) in your shell before running `lean backtest` on the laptop, or SSH into HAL-107 where `localhost` works directly.
+
+---
+
 ## Writing an Algorithm
 
-### Step 1 — Copy the library into your algorithm folder
+### Step 1 — Make `lean_pipeline` importable
 
-Copy `lean_pipeline/` into your LEAN project so it sits alongside your algorithm:
+On HAL-107, symlink once (see Deploying to HAL-107 above) so all algorithms share one copy:
 
 ```
-MyProject/
-├── lean_pipeline/           ← copy this entire folder
-│   ├── base_strategy.py
-│   ├── coverage_checker.py
-│   ├── pipeline_client.py
-│   └── custom_data_reader.py
-└── MyStrategy/
+~/Projects/Algo/
+├── lean_pipeline/       ← symlink to lean-data-platform/lean_pipeline
+├── MyStrategy/
+│   └── main.py
+└── AnotherStrategy/
     └── main.py
 ```
+
+No per-algorithm copying needed. Each algorithm inserts `~/Projects/Algo` onto `sys.path` and imports directly.
 
 ### Step 2 — Write your algorithm
 
 ```python
 import sys, os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+# Makes lean_pipeline importable via the symlink in ~/Projects/Algo
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from AlgorithmImports import *
 from lean_pipeline.base_strategy import BaseStrategy

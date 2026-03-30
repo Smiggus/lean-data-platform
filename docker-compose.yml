@@ -27,7 +27,7 @@ services:
     volumes:
       - ./pipeline:/app/pipeline          # hot-reload during dev
       - ./lean_bridge:/app/lean_bridge
-      - lean_data:/app/data               # LEAN local data library
+      - ${LEAN_DATA_ROOT}:/app/data         # LEAN local data library (host bind mount)
       - dagster_storage:/app/dagster_home
       - ./dagster_home/dagster.yaml:/app/dagster_home/dagster.yaml:ro
       - ./manifests:/app/manifests
@@ -50,7 +50,7 @@ services:
     volumes:
       - ./pipeline:/app/pipeline
       - ./lean_bridge:/app/lean_bridge
-      - lean_data:/app/data
+      - ${LEAN_DATA_ROOT}:/app/data
       - dagster_storage:/app/dagster_home
       - ./dagster_home/dagster.yaml:/app/dagster_home/dagster.yaml:ro
       - ./manifests:/app/manifests
@@ -62,7 +62,6 @@ services:
       - lean_net
 
 volumes:
-  lean_data:
   dagster_storage:
 
 networks:
