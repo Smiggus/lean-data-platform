@@ -30,3 +30,10 @@ dagster_home/schedules/
 # OS
 .DS_Store
 Thumbs.db
+
+# Scripts runtime output
+scripts/seed_progress.json
+
+# Claude
+CLAUDE.md
+.claude/
