@@ -127,10 +127,12 @@ def fmp_get(endpoint: str, params: dict | None = None, delay: float = 0.3) -> An
                 print(f"\n  [RATE LIMIT] waiting {wait}s ...", flush=True)
                 time.sleep(wait)
                 continue
+            if r.status_code in (402, 404):
+                # 402 = endpoint not on this plan; 404 = endpoint doesn't exist
+                return None
             r.raise_for_status()
             time.sleep(delay)
             data = r.json()
-            # FMP returns {"error": "..."} for invalid tickers/plans
             if isinstance(data, dict) and "error" in data:
                 return None
             return data
@@ -218,11 +220,12 @@ def insert_splits(conn, ticker: str, rows: list[dict]) -> int:
 # ── Data fetchers ──────────────────────────────────────────────────────────────
 
 def fetch_ohlcv(ticker: str, start: str, end: str, delay: float) -> list[dict]:
+    # Stable API returns a direct JSON array (no "historical" wrapper)
     data = fmp_get("historical-price-eod/full", {"symbol": ticker, "from": start, "to": end}, delay=delay)
-    if not data or "historical" not in data:
+    if not data or not isinstance(data, list):
         return []
     rows = []
-    for bar in data["historical"]:
+    for bar in data:
         d = bar.get("date")
         if not d:
             continue
@@ -283,9 +286,10 @@ def fetch_corporate_actions(ticker: str, delay: float) -> dict:
     divs: list[dict] = []
     spls: list[dict] = []
 
-    div_data = fmp_get("historical-dividends", {"symbol": ticker}, delay=delay)
-    if div_data and "historical" in div_data:
-        for r in div_data["historical"]:
+    # Stable API: "dividends" endpoint, direct array (no "historical" wrapper)
+    div_data = fmp_get("dividends", {"symbol": ticker}, delay=delay)
+    if div_data and isinstance(div_data, list):
+        for r in div_data:
             divs.append({
                 "ticker":           ticker,
                 "ex_date":          r.get("date"),
@@ -296,15 +300,16 @@ def fetch_corporate_actions(ticker: str, delay: float) -> dict:
                 "adj_dividend":     r.get("adjDividend"),
             })
 
-    spl_data = fmp_get("historical-stock-splits", {"symbol": ticker}, delay=delay)
-    if spl_data and "historical" in spl_data:
-        for r in spl_data["historical"]:
+    # Stable API: "splits" endpoint, direct array, field "splitType" (not "label")
+    spl_data = fmp_get("splits", {"symbol": ticker}, delay=delay)
+    if spl_data and isinstance(spl_data, list):
+        for r in spl_data:
             spls.append({
                 "ticker":      ticker,
                 "split_date":  r.get("date"),
                 "numerator":   r.get("numerator"),
                 "denominator": r.get("denominator"),
-                "ratio_label": r.get("label"),
+                "ratio_label": r.get("splitType"),
             })
 
     return {"dividends": divs, "splits": spls}

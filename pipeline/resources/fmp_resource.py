@@ -99,18 +99,18 @@ class FMPResource(ConfigurableResource):
     # ── Corporate actions ─────────────────────────────────────────────────────
 
     def fetch_dividends(self, ticker: str) -> pd.DataFrame:
-        data = self._get("historical-dividends", {"symbol": ticker})
-        if "historical" not in data:
+        data = self._get("dividends", {"symbol": ticker})
+        if not data or not isinstance(data, list):
             return pd.DataFrame()
-        df = pd.DataFrame(data["historical"])
+        df = pd.DataFrame(data).drop(columns=["symbol", "yield", "frequency"], errors="ignore")
         df["ex_date"] = pd.to_datetime(df["date"])
         return self._tag(df, ticker)
 
     def fetch_splits(self, ticker: str) -> pd.DataFrame:
-        data = self._get("historical-stock-splits", {"symbol": ticker})
-        if "historical" not in data:
+        data = self._get("splits", {"symbol": ticker})
+        if not data or not isinstance(data, list):
             return pd.DataFrame()
-        df = pd.DataFrame(data["historical"])
+        df = pd.DataFrame(data).drop(columns=["symbol", "splitType"], errors="ignore")
         df["split_date"] = pd.to_datetime(df["date"])
         return self._tag(df, ticker)
 
