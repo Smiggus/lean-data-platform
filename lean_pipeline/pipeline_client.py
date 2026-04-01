@@ -2,7 +2,7 @@
 PipelineClient
 ──────────────
 Fires Dagster jobs via the GraphQL API.
-No Dagster imports — uses plain urllib, works in any Python environment.
+No Dagster imports - uses plain urllib, works in any Python environment.
 
 Endpoint: http://<DAGSTER_HOST>:<DAGSTER_PORT>/graphql
 """
@@ -18,8 +18,8 @@ from datetime import date
 class PipelineClient:
     """
     Config from environment variables:
-        DAGSTER_HOST — hostname of dagster-webserver (default: localhost)
-        DAGSTER_PORT — port (default: 3000)
+        DAGSTER_HOST - hostname of dagster-webserver (default: localhost)
+        DAGSTER_PORT - port (default: 3000)
     """
 
     def __init__(self):

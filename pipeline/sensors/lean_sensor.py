@@ -106,7 +106,7 @@ def lean_missing_data_sensor(context: SensorEvaluationContext):
     missing_items: list[dict] = manifest.get("missing_data", [])
     if not missing_items:
         MANIFEST_PATH.unlink(missing_ok=True)
-        yield SkipReason("Manifest empty — nothing to fetch.")
+        yield SkipReason("Manifest empty - nothing to fetch.")
         return
 
     strategy_name = manifest.get("strategy_name", "unknown")

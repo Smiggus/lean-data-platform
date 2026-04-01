@@ -5,13 +5,13 @@ Base class for all pipeline-aware QC algorithms.
 
 Handles:
   - Environment detection (local backtest vs QC cloud)
-  - request_ohlcv()        — checks DB, fires Databento job if missing
-  - request_fundamentals() — checks DB, fires FMP job if missing
-  - Fail-fast pattern      — exits cleanly if data missing so Dagster can fill it
+  - request_ohlcv()        - checks DB, fires Databento job if missing
+  - request_fundamentals() - checks DB, fires FMP job if missing
+  - Fail-fast pattern      - exits cleanly if data missing so Dagster can fill it
 
 You do NOT need to know your tickers upfront. Call request_ohlcv() for each
 ticker you need inside _init_local_data(). If any are missing, all pending
-jobs are fired and the algorithm exits — re-run after Dagster completes.
+jobs are fired and the algorithm exits - re-run after Dagster completes.
 
 Usage:
     from lean_pipeline.base_strategy import BaseStrategy
@@ -26,11 +26,11 @@ Usage:
             super().Initialize()
 
         def _init_local_data(self):
-            # Call for every ticker you need — dynamic, no upfront list required
+            # Call for every ticker you need - dynamic, no upfront list required
             self.request_ohlcv("SPY", self.StartDate, self.EndDate)
             self.request_ohlcv("QQQ", self.StartDate, self.EndDate)
 
-            # Optional — only if your strategy uses fundamental data
+            # Optional - only if your strategy uses fundamental data
             # self.request_fundamentals("SPY")
 
             # Only reached if ALL data is present in DB
@@ -42,8 +42,8 @@ Usage:
             self.AddEquity("QQQ", Resolution.Daily)
 
 Environment detection order:
-    1. QC_RUN_ENV env var ("local" or "cloud") — most explicit, use this
-    2. Hostname match against _LOCAL_HOSTNAMES — fallback
+    1. QC_RUN_ENV env var ("local" or "cloud") - most explicit, use this
+    2. Hostname match against _LOCAL_HOSTNAMES - fallback
     3. Default: cloud (safe for QC platform deployment)
 """
 
@@ -104,7 +104,7 @@ class BaseStrategy(QCAlgorithm):
             try:
                 self._init_local_data()
             except DataRequestError as e:
-                # Jobs fired — exit cleanly, re-run after Dagster completes
+                # Jobs fired - exit cleanly, re-run after Dagster completes
                 self.Log(str(e))
                 self.Quit(str(e))
                 return
@@ -130,12 +130,12 @@ class BaseStrategy(QCAlgorithm):
         """
         Ensure OHLCV data for ticker+range exists in DB and LEAN data library.
 
-        Checks PostgreSQL for gaps — only fires a Dagster job for missing segments.
+        Checks PostgreSQL for gaps - only fires a Dagster job for missing segments.
         If data is complete: returns silently.
         If data is missing: fires databento_equity_job and raises DataRequestError.
 
         Args:
-            ticker:     Symbol e.g. "SPY", "QQQ", "AAPL" — any ticker, determined at runtime
+            ticker:     Symbol e.g. "SPY", "QQQ", "AAPL" - any ticker, determined at runtime
             start_date: datetime or date
             end_date:   datetime or date
             resolution: "daily" | "minute" | "hourly"
@@ -159,7 +159,7 @@ class BaseStrategy(QCAlgorithm):
 
         missing = checker.get_missing_segments(ticker, start_date, end_date, resolution)
         self.Log(
-            f"[BaseStrategy] {ticker} missing {len(missing)} segment(s) — "
+            f"[BaseStrategy] {ticker} missing {len(missing)} segment(s) - "
             f"firing databento_equity_job"
         )
 
@@ -198,7 +198,7 @@ class BaseStrategy(QCAlgorithm):
         """
         Ensure FMP fundamental data exists for ticker.
 
-        Optional — only call this if your strategy uses P/E, P/B, revenue, etc.
+        Optional - only call this if your strategy uses P/E, P/B, revenue, etc.
         If present: returns silently.
         If missing: fires fmp_fundamentals_job and raises DataRequestError.
 
@@ -216,7 +216,7 @@ class BaseStrategy(QCAlgorithm):
             self.Log(f"[BaseStrategy] {ticker} fundamentals covered ✓")
             return
 
-        self.Log(f"[BaseStrategy] {ticker} fundamentals missing — firing fmp_fundamentals_job")
+        self.Log(f"[BaseStrategy] {ticker} fundamentals missing - firing fmp_fundamentals_job")
 
         lean_root = os.environ.get("LEAN_DATA_ROOT", "/app/data")
         client    = PipelineClient()

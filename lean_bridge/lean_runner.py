@@ -94,7 +94,7 @@ class LeanRunner:
                     missing.append(req)
                 continue
 
-            # OHLCV — prefer DB check, fall back to ZIP check
+            # OHLCV - prefer DB check, fall back to ZIP check
             if self.timescale is not None:
                 start = pd.to_datetime(req["start_date"]).tz_localize("UTC")
                 end   = pd.to_datetime(req["end_date"]).tz_localize("UTC")
@@ -133,7 +133,7 @@ class LeanRunner:
         missing      = self.check_coverage(requirements)
 
         if missing:
-            print(f"[LeanRunner] {len(missing)} requirements unmet — writing manifest")
+            print(f"[LeanRunner] {len(missing)} requirements unmet - writing manifest")
             self.write_manifest(missing)
             return {"status": "missing_data", "missing_data": missing, "output": "", "returncode": -1}
 
@@ -171,7 +171,7 @@ if __name__ == "__main__":
     result = runner.run()
 
     if result["status"] == "missing_data":
-        print("[LeanRunner] Data missing — Dagster sensor will trigger ingestion.")
+        print("[LeanRunner] Data missing - Dagster sensor will trigger ingestion.")
         sys.exit(1)
     elif result["status"] == "error":
         print(f"[LeanRunner] Backtest failed (rc={result['returncode']})")

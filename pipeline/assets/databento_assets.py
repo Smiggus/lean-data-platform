@@ -46,7 +46,7 @@ def fetch_ohlcv_op(context) -> pd.DataFrame:
     )
 
     if not missing_segments:
-        context.log.info(f"[fetch_ohlcv_op] {ticker} fully covered — reading from DB")
+        context.log.info(f"[fetch_ohlcv_op] {ticker} fully covered - reading from DB")
         df = db_res.get_ohlcv(ticker, start, end, resolution)
         yield Output(df, output_name="df", metadata={
             "ticker":           ticker,

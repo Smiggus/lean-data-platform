@@ -2,7 +2,7 @@
 CoverageChecker
 ───────────────
 Lightweight PostgreSQL client used by BaseStrategy to check data coverage
-before firing Dagster jobs. No Dagster imports — safe in any QC environment.
+before firing Dagster jobs. No Dagster imports - safe in any QC environment.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ class CoverageChecker:
 
     Credentials from environment variables: PGUSER, PGPASS, PGHOST, PGPORT, PGDB
 
-    Falls back gracefully if DB is unreachable — returns not covered so the
+    Falls back gracefully if DB is unreachable - returns not covered so the
     pipeline fetches fresh data.
     """
 
@@ -60,7 +60,7 @@ class CoverageChecker:
     ) -> bool:
         """
         True if ohlcv.prices has no weekday gaps in [start_date, end_date].
-        Uses generate_series to check every weekday — not just min/max bounds.
+        Uses generate_series to check every weekday - not just min/max bounds.
         """
         try:
             conn = self._connect()
@@ -84,12 +84,12 @@ class CoverageChecker:
             print(f"[CoverageChecker] DB unreachable, assuming not covered: {e}")
             return False
 
-        # PostgreSQL covered — verify the LEAN ZIP exists on disk
+        # PostgreSQL covered - verify the LEAN ZIP exists on disk
         if not self._lean_zip_exists(ticker, resolution):
             print(
                 f"[CoverageChecker] {ticker} covered in DB but LEAN ZIP missing at "
                 f"{self._lean_data_root}/equity/usa/{resolution}/{ticker.lower()}.zip "
-                f"— will trigger re-write from DB"
+                f"- will trigger re-write from DB"
             )
             return False
 
@@ -146,7 +146,7 @@ class CoverageChecker:
     def is_fundamentals_covered(self, ticker: str) -> bool:
         """
         True if fundamentals.income_statement has at least one row for ticker.
-        Proxy check — if income statement exists, all tables are assumed populated.
+        Proxy check - if income statement exists, all tables are assumed populated.
         """
         try:
             conn = self._connect()

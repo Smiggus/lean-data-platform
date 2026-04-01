@@ -2,7 +2,7 @@
 
 Dagster-orchestrated data pipeline: **Databento + FMP → PostgreSQL → LEAN CLI**.
 
-Algorithms call `request_ohlcv()` / `request_fundamentals()` directly — the library checks PostgreSQL for gaps, fires Dagster jobs for only the missing data, and the algorithm exits cleanly. Re-run after ingestion completes.
+Algorithms call `request_ohlcv()` / `request_fundamentals()` directly - the library checks PostgreSQL for gaps, fires Dagster jobs for only the missing data, and the algorithm exits cleanly. Re-run after ingestion completes.
 
 ```
 Algorithm calls request_ohlcv("SPY", start, end)
@@ -82,12 +82,12 @@ lean-data-platform/
 cp .env.example .env
 ```
 
-Edit `.env` — fill in all values:
+Edit `.env` - fill in all values:
 
 ```
 DATABENTO_API_KEY=db-your-key-here
 FMP_API_KEY=your-fmp-key-here
-PGHOST=192.168.17.4          # LAN IP of TARS — not localhost
+PGHOST=192.168.17.4          # LAN IP of TARS - not localhost
 PGPORT=5432
 PGDB=FinancialData
 PGUSER=eqty
@@ -111,7 +111,7 @@ docker exec -i <pg_container> psql -U eqty -d FinancialData < ~/init.sql
 
 ### 3. Start Dagster
 
-Run from Windows (Anaconda Prompt) — not WSL, as OneDrive paths are unreliable via `/mnt/c`:
+Run from Windows (Anaconda Prompt) - not WSL, as OneDrive paths are unreliable via `/mnt/c`:
 
 ```cmd
 cd C:\Users\MP\OneDrive\CASE\Projects\Coding\DataFeeds\lean-data-platform
@@ -159,7 +159,7 @@ cd ~/Projects/Coding/DataFeeds/lean-data-platform
 cp .env.example .env
 ```
 
-Edit `.env` — key HAL-107 values:
+Edit `.env` - key HAL-107 values:
 
 ```
 LEAN_DATA_ROOT=/home/mp/Projects/Algo/data   # ← full absolute path, no ~
@@ -240,7 +240,7 @@ Set `DAGSTER_HOST=192.168.17.X` (HAL-107's LAN IP) in your shell before running 
 
 ## Writing an Algorithm
 
-### Step 1 — Make `lean_pipeline` importable
+### Step 1 - Make `lean_pipeline` importable
 
 On HAL-107, symlink once (see Deploying to HAL-107 above) so all algorithms share one copy:
 
@@ -255,7 +255,7 @@ On HAL-107, symlink once (see Deploying to HAL-107 above) so all algorithms shar
 
 No per-algorithm copying needed. Each algorithm inserts `~/Projects/Algo` onto `sys.path` and imports directly.
 
-### Step 2 — Write your algorithm
+### Step 2 - Write your algorithm
 
 ```python
 import sys, os
@@ -277,7 +277,7 @@ class MyStrategy(BaseStrategy):
 
     def _init_local_data(self):
         # Call request_ohlcv for every ticker you need.
-        # Tickers do not need to be known upfront — add them dynamically.
+        # Tickers do not need to be known upfront - add them dynamically.
         # If data is missing: Dagster job fires, algorithm exits cleanly.
         # Re-run after Dagster completes ingestion.
         self.request_ohlcv("SPY", self.StartDate, self.EndDate)
@@ -303,7 +303,7 @@ class MyStrategy(BaseStrategy):
         self.LogEnv(f"Final: ${self.Portfolio.TotalPortfolioValue:,.2f}")
 ```
 
-### Step 3 — Set environment variables
+### Step 3 - Set environment variables
 
 On your local machine (outside Docker), set:
 
@@ -321,7 +321,7 @@ export LEAN_DATA_ROOT=/app/data
 
 Or add them to your shell profile / `.env` file loaded by LEAN.
 
-### Step 4 — Run
+### Step 4 - Run
 
 ```bash
 lean backtest "MyStrategy" --data-provider-historical Local
@@ -336,10 +336,10 @@ self.request_ohlcv(
     end_date   = self.EndDate,
     resolution = "daily",        # "daily" | "minute" | "hourly"
     dataset    = "XNAS.ITCH",    # Databento dataset:
-                                 #   XNAS.ITCH  — NASDAQ equities (default)
-                                 #   XNYS.PILLAR — NYSE equities
-                                 #   GLBX.MDP3  — futures
-                                 #   OPRA.PILLAR — options
+                                 #   XNAS.ITCH  - NASDAQ equities (default)
+                                 #   XNYS.PILLAR - NYSE equities
+                                 #   GLBX.MDP3  - futures
+                                 #   OPRA.PILLAR - options
 )
 ```
 
@@ -365,8 +365,8 @@ Exposes in `OnData` via `PipelineFundamentals`:
 | US Equity | daily / minute | Databento | XNAS.ITCH |
 | Options | daily | Databento | OPRA.PILLAR |
 | Futures | daily | Databento | GLBX.MDP3 |
-| Fundamentals | annual / quarter | FMP | — |
-| Corporate actions | — | FMP | — |
+| Fundamentals | annual / quarter | FMP | - |
+| Corporate actions | - | FMP | - |
 
 ## Cost Control
 
@@ -375,7 +375,7 @@ Databento charges per byte downloaded. The pipeline only fetches missing data:
 1. `CoverageChecker` queries PostgreSQL with `generate_series` to find exact missing weekdays
 2. Contiguous gaps are grouped into segments
 3. `DatabentoResource.fetch_ohlcv()` fetches one API call per segment (not the full range)
-4. Results are upserted — existing rows are never overwritten with duplicate downloads
+4. Results are upserted - existing rows are never overwritten with duplicate downloads
 
 ## Nightly Watchlist Refresh
 

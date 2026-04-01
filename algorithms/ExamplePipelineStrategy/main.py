@@ -10,7 +10,7 @@ cloud:  native QC data via AddEquity.
 Run locally:
     lean backtest "ExamplePipelineStrategy" --data-provider-historical Local
 
-Tickers do NOT need to be declared upfront — call request_ohlcv() for each
+Tickers do NOT need to be declared upfront - call request_ohlcv() for each
 ticker your strategy needs inside _init_local_data().
 """
 
@@ -35,20 +35,20 @@ class ExamplePipelineStrategy(BaseStrategy):
         # request_ohlcv() checks PostgreSQL for gaps.
         # Only missing date ranges are downloaded from Databento.
         # If any data is missing, a Dagster job is fired and the
-        # algorithm exits cleanly — re-run after ingestion completes.
+        # algorithm exits cleanly - re-run after ingestion completes.
         self.request_ohlcv("SPY", self.StartDate, self.EndDate)
 
-        # Add more tickers as needed — determined at runtime, no upfront list:
+        # Add more tickers as needed - determined at runtime, no upfront list:
         # self.request_ohlcv("QQQ", self.StartDate, self.EndDate)
         # self.request_ohlcv("AAPL", self.StartDate, self.EndDate)
 
-        # Optional — only if your strategy needs fundamental data:
+        # Optional - only if your strategy needs fundamental data:
         # self.request_fundamentals("SPY")  # fires fmp_fundamentals_job if missing
 
         # Only reached if all data is present in DB
         self._spy  = self.AddEquity("SPY", Resolution.Daily).Symbol
         self._pipe = self.AddData(PipelineEquityData, "SPY", Resolution.Daily).Symbol
-        self.LogEnv("All data present — subscriptions registered")
+        self.LogEnv("All data present - subscriptions registered")
 
     def _init_cloud_data(self):
         self._spy  = self.AddEquity("SPY", Resolution.Daily).Symbol

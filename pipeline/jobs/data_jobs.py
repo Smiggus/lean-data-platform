@@ -100,7 +100,7 @@ def daily_equity_refresh_graph():
 
 daily_equity_refresh_job = daily_equity_refresh_graph.to_job(
     name="daily_equity_refresh_job",
-    description="Nightly watchlist refresh — Databento → PostgreSQL → LEAN ZIPs",
+    description="Nightly watchlist refresh - Databento → PostgreSQL → LEAN ZIPs",
     tags={"pipeline": "scheduled"},
 )
 

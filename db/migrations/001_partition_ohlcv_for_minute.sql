@@ -29,7 +29,7 @@ CREATE TABLE ohlcv.prices (
     inserted_at TIMESTAMPTZ      NOT NULL DEFAULT NOW()
 ) PARTITION BY RANGE (ts_event);
 
--- Add yearly partitions — extend this list as needed
+-- Add yearly partitions - extend this list as needed
 CREATE TABLE ohlcv.prices_2020 PARTITION OF ohlcv.prices FOR VALUES FROM ('2020-01-01') TO ('2021-01-01');
 CREATE TABLE ohlcv.prices_2021 PARTITION OF ohlcv.prices FOR VALUES FROM ('2021-01-01') TO ('2022-01-01');
 CREATE TABLE ohlcv.prices_2022 PARTITION OF ohlcv.prices FOR VALUES FROM ('2022-01-01') TO ('2023-01-01');

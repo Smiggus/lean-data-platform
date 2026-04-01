@@ -345,23 +345,23 @@ def _fetch_russell2000_tickers() -> list[str]:
     index during your test window will be absent from the data.
 
     For survivorship-bias-free historical constituent data, options are:
-      - Norgate Data Platinum (~$630/yr) — point-in-time back to 1990,
+      - Norgate Data Platinum (~$630/yr) - point-in-time back to 1990,
         includes delisted securities. Integrates with Python/Zipline.
         https://norgatedata.com
-      - CRSP/Compustat via WRDS — institutional/academic access only.
-      - AlgoSeek — enterprise pricing, data from 2007.
+      - CRSP/Compustat via WRDS - institutional/academic access only.
+      - AlgoSeek - enterprise pricing, data from 2007.
 
     For most strategy development this is acceptable; just be aware that
     your backtest performance will be slightly optimistic.
     """
-    # 1 — FMP (requires index-data plan tier)
+    # 1 - FMP (requires index-data plan tier)
     data = fmp_get("russell-2000-constituent", delay=0)
     if data and isinstance(data, list) and data[0].get("symbol"):
         print("  source: FMP API")
         return sorted({r["symbol"] for r in data if r.get("symbol")})
 
-    # 2 — quanthero GitHub (~1,980 tickers, updated periodically)
-    print("  FMP constituent endpoint not available on this plan — falling back to GitHub CSV")
+    # 2 - quanthero GitHub (~1,980 tickers, updated periodically)
+    print("  FMP constituent endpoint not available on this plan - falling back to GitHub CSV")
     for url in [
         "https://raw.githubusercontent.com/quanthero/US_Indices_Constituents/main/Russell2000.csv",
         "https://raw.githubusercontent.com/ikoniaris/Russell2000/master/russell_2000_components.csv",
@@ -489,7 +489,7 @@ def main():
             try:
                 conn = pg_connect()
             except Exception as ce:
-                print(f"Cannot reconnect to DB: {ce} — aborting")
+                print(f"Cannot reconnect to DB: {ce} - aborting")
                 break
 
         # Save progress every 50 tickers

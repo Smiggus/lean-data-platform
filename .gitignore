@@ -10,7 +10,7 @@ build/
 .venv/
 venv/
 
-# Data (large — store in Docker volume, not repo)
+# Data (large - store in Docker volume, not repo)
 data/
 manifests/missing_data_manifest.json
 

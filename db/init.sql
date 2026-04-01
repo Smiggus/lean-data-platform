@@ -1,5 +1,5 @@
 -- ─────────────────────────────────────────────────────────────────────────────
--- LEAN Data Platform — Database Init
+-- LEAN Data Platform - Database Init
 -- Target:   FinancialData @ 192.168.17.4:5432 (TARS)
 -- Postgres: 16.4
 --

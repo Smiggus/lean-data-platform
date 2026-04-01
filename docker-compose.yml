@@ -1,7 +1,7 @@
 version: '3.8'
 
 # ─────────────────────────────────────────────────────────────────────────────
-# LEAN Data Platform — Docker Compose
+# LEAN Data Platform - Docker Compose
 #
 # Database is external (TARS @ 192.168.17.4:5432). No DB service here.
 # Services: dagster-webserver | dagster-daemon

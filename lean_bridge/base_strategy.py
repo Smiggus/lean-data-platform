@@ -28,7 +28,7 @@ Usage:
                 self.Log(f"Pipeline close: {bar.Close}")
 """
 
-from AlgorithmImports import *   # noqa — QC runtime injection
+from AlgorithmImports import *   # noqa - QC runtime injection
 import os
 import platform
 from enum import Enum

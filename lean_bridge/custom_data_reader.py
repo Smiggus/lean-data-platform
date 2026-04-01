@@ -7,12 +7,12 @@ produced by the Dagster pipeline.
 Drop this file into your algorithm folder alongside main.py.
 
 Classes:
-    PipelineEquityData   — daily OHLCV from Databento (via pipeline ZIPs)
-    PipelineMinuteData   — minute OHLCV (same format, different directory)
-    PipelineFundamentals — FMP fundamentals (fine JSON files)
+    PipelineEquityData   - daily OHLCV from Databento (via pipeline ZIPs)
+    PipelineMinuteData   - minute OHLCV (same format, different directory)
+    PipelineFundamentals - FMP fundamentals (fine JSON files)
 """
 
-from AlgorithmImports import *   # noqa — QC runtime injection
+from AlgorithmImports import *   # noqa - QC runtime injection
 
 
 class PipelineEquityData(PythonData):
@@ -21,7 +21,7 @@ class PipelineEquityData(PythonData):
 
     File: data/equity/usa/daily/{ticker}.zip → {ticker}.csv
     Format (no header): YYYYMMDD HH:MM, open, high, low, close, volume
-    Prices in deci-cents — divided by 10,000 on read.
+    Prices in deci-cents - divided by 10,000 on read.
     """
 
     def get_source(self, config, date, is_live_mode):

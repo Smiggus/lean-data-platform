@@ -65,7 +65,7 @@ class LeanDataWriter:
             Single Path for daily/hourly; list[Path] for minute/second.
         """
         if df.empty:
-            raise ValueError(f"Empty DataFrame for {ticker} — nothing to write")
+            raise ValueError(f"Empty DataFrame for {ticker} - nothing to write")
 
         lean_dir = _LEAN_DIR.get(resolution, resolution)
 
@@ -81,7 +81,7 @@ class LeanDataWriter:
         lean_dir: str,
         resolution: str,
     ) -> Path:
-        """One ZIP containing one CSV — covers all dates for this ticker."""
+        """One ZIP containing one CSV - covers all dates for this ticker."""
         lean_df = self._to_lean_columns(df, lean_dir)
         out_dir = self.root / "equity" / "usa" / lean_dir
         out_dir.mkdir(parents=True, exist_ok=True)

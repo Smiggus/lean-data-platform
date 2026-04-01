@@ -83,7 +83,7 @@ class DatabentoResource(ConfigurableResource):
         Fetch OHLCV bars from Databento.
 
         If `segments` is provided (list of {"start": date, "end": date}),
-        fetches only those date windows — the cost-control path.
+        fetches only those date windows - the cost-control path.
 
         If `segments` is None, fetches the full start_date → end_date range.
         """
