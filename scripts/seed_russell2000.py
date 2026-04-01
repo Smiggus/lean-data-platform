@@ -330,6 +330,63 @@ def save_progress(done: set[str], errors: dict[str, str]) -> None:
 
 # ── Main ───────────────────────────────────────────────────────────────────────
 
+def _fetch_russell2000_tickers() -> list[str]:
+    """
+    Fetch current Russell 2000 constituents with a fallback chain:
+      1. FMP stable API (requires premium plan)
+      2. quanthero GitHub CSV (free, updated periodically)
+      3. ikoniaris GitHub CSV (free, older backup)
+
+    NOTE ON SURVIVORSHIP BIAS
+    ─────────────────────────
+    All three sources return *current* constituents only. For backtests that
+    use the full Russell 2000 as a universe you will be subject to survivorship
+    bias: stocks that were delisted, went bankrupt, or were removed from the
+    index during your test window will be absent from the data.
+
+    For survivorship-bias-free historical constituent data, options are:
+      - Norgate Data Platinum (~$630/yr) — point-in-time back to 1990,
+        includes delisted securities. Integrates with Python/Zipline.
+        https://norgatedata.com
+      - CRSP/Compustat via WRDS — institutional/academic access only.
+      - AlgoSeek — enterprise pricing, data from 2007.
+
+    For most strategy development this is acceptable; just be aware that
+    your backtest performance will be slightly optimistic.
+    """
+    # 1 — FMP (requires index-data plan tier)
+    data = fmp_get("russell-2000-constituent", delay=0)
+    if data and isinstance(data, list) and data[0].get("symbol"):
+        print("  source: FMP API")
+        return sorted({r["symbol"] for r in data if r.get("symbol")})
+
+    # 2 — quanthero GitHub (~1,980 tickers, updated periodically)
+    print("  FMP constituent endpoint not available on this plan — falling back to GitHub CSV")
+    for url in [
+        "https://raw.githubusercontent.com/quanthero/US_Indices_Constituents/main/Russell2000.csv",
+        "https://raw.githubusercontent.com/ikoniaris/Russell2000/master/russell_2000_components.csv",
+    ]:
+        try:
+            r = requests.get(url, timeout=15)
+            r.raise_for_status()
+            lines  = r.text.strip().splitlines()
+            header = [c.strip().lower() for c in lines[0].split(",")]
+            col    = next((i for i, h in enumerate(header) if "ticker" in h or "symbol" in h), 0)
+            tickers = sorted({
+                line.split(",")[col].strip().upper()
+                for line in lines[1:]
+                if line.strip() and line.split(",")[col].strip()
+            })
+            if tickers:
+                print(f"  source: {url.split('/')[4]}/{url.split('/')[5]} GitHub ({len(tickers)} tickers)")
+                return tickers
+        except Exception as e:
+            print(f"  GitHub fallback failed ({url}): {e}")
+
+    print("ERROR: All constituent sources failed. Use --tickers to specify manually.")
+    sys.exit(1)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Bulk seed Russell 2000 data from FMP → PostgreSQL")
     parser.add_argument("--start",             default=START_DATE,  help="OHLCV start date YYYY-MM-DD")
@@ -348,12 +405,7 @@ def main():
         tickers = [t.strip().upper() for t in args.tickers.split(",") if t.strip()]
         print(f"Custom list: {len(tickers)} tickers")
     else:
-        print("Fetching Russell 2000 constituents from FMP...", flush=True)
-        data = fmp_get("russell-2000-constituent", delay=0)
-        if not data or not isinstance(data, list):
-            print("ERROR: Could not fetch Russell 2000 constituent list. Check FMP_API_KEY.")
-            sys.exit(1)
-        tickers = sorted({r["symbol"] for r in data if r.get("symbol")})
+        tickers = _fetch_russell2000_tickers()
         print(f"  {len(tickers)} constituents")
 
     if args.dry_run:
