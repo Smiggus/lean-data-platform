@@ -36,4 +36,5 @@ scripts/seed_progress.json
 
 # Claude
 CLAUDE.md
+PLAN.md
 .claude/
