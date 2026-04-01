@@ -1,0 +1,7 @@
+# Normalise line endings to LF in the repo; checkout as native on each OS
+* text=auto eol=lf
+
+# Force binary files to never be modified
+*.zip binary
+*.png binary
+*.pdf binary
